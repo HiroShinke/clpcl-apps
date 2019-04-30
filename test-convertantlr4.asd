@@ -10,6 +10,7 @@
   :author "hiro.shinke"
   :depends-on (:convertantlr4
   	       :fiveam
+	       :cl-heredoc
 	       )
   :components ((:file "testconvertantlr4"))
   :perform (test-op (o s)

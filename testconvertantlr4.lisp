@@ -33,7 +33,7 @@
 (set-dispatch-macro-character #\# #\> #'cl-heredoc:read-heredoc)
 ;;;;;
 
-(test simple
+(test simple-parse
   "llllllllll"
   (is
    (equalp
@@ -52,7 +52,7 @@ eof
    )
   )
 
-(test grammar
+(test simple-grammar
   "llllllllll"
   (is
    (equalp
@@ -68,6 +68,52 @@ eof
 
 grammar abc;
 abc : a b c;
+a   : 'a';
+b   : 'b';
+c   : 'c';
+
+eof
+)
+    )
+   )
+  )
+
+
+(test many-parse
+  "llllllllll"
+  (is
+   (equalp
+    (success 5 '(("a" "a" "a") "b" "c"))
+    (parse #>eof>
+
+grammar abc;
+abc : a+ b c;
+a   : 'a';
+b   : 'b';
+c   : 'c';
+
+eof
+     "aaabcd")
+    )
+   )
+  )
+
+(test many-grammar
+  "llllllllll"
+  (is
+   (equalp
+
+    '(CLPCL-DEF-PARSERS
+      ((|abc| (CLPCL-SEQ (CLPCL-MANY-1 |a|) |b| |c|))
+       (|a| (CONVERTANTLR4::TOKEN-REGEXP "a"))
+       (|b| (CONVERTANTLR4::TOKEN-REGEXP "b"))
+       (|c| (CONVERTANTLR4::TOKEN-REGEXP "c")))
+      |abc|)
+
+    (grammar #>eof>
+
+grammar abc;
+abc : a+ b c;
 a   : 'a';
 b   : 'b';
 c   : 'c';
