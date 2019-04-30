@@ -34,11 +34,8 @@
 ;;;;;
 
 (test simple-parse
-  "llllllllll"
-  (is
-   (equalp
-    (success 3 '("a" "b" "c"))
-    (parse #>eof>
+  "simple"
+  (let ((g #>eof>
 
 grammar abc;
 abc : a b c;
@@ -46,45 +43,31 @@ a   : 'a';
 b   : 'b';
 c   : 'c';
 
-eof
-     "abcd")
+eof))
+
+    (is
+     (equalp
+      '(CLPCL-DEF-PARSERS
+	((|abc| (CLPCL-SEQ |a| |b| |c|))
+	 (|a| (CONVERTANTLR4::TOKEN-REGEXP "a"))
+	 (|b| (CONVERTANTLR4::TOKEN-REGEXP "b"))
+	 (|c| (CONVERTANTLR4::TOKEN-REGEXP "c")))
+	|abc|)
+      (grammar g)
+      )
+     )
+    (is
+     (equalp
+      (success 3 '("a" "b" "c"))
+      (parse g "abcd")
+      )
+     )
     )
-   )
   )
-
-(test simple-grammar
-  "llllllllll"
-  (is
-   (equalp
-
-    '(CLPCL-DEF-PARSERS
-      ((|abc| (CLPCL-SEQ |a| |b| |c|))
-       (|a| (CONVERTANTLR4::TOKEN-REGEXP "a"))
-       (|b| (CONVERTANTLR4::TOKEN-REGEXP "b"))
-       (|c| (CONVERTANTLR4::TOKEN-REGEXP "c")))
-      |abc|)
-
-    (grammar #>eof>
-
-grammar abc;
-abc : a b c;
-a   : 'a';
-b   : 'b';
-c   : 'c';
-
-eof
-)
-    )
-   )
-  )
-
 
 (test many-parse
-  "llllllllll"
-  (is
-   (equalp
-    (success 5 '(("a" "a" "a") "b" "c"))
-    (parse #>eof>
+  "simple"
+  (let ((g #>eof>
 
 grammar abc;
 abc : a+ b c;
@@ -92,37 +75,221 @@ a   : 'a';
 b   : 'b';
 c   : 'c';
 
-eof
-     "aaabcd")
+eof))
+
+    (is
+     (equalp
+      '(CLPCL-DEF-PARSERS
+	((|abc| (CLPCL-SEQ (CLPCL-MANY-1 |a|) |b| |c|))
+	 (|a| (CONVERTANTLR4::TOKEN-REGEXP "a"))
+	 (|b| (CONVERTANTLR4::TOKEN-REGEXP "b"))
+	 (|c| (CONVERTANTLR4::TOKEN-REGEXP "c")))
+	|abc|)
+      (grammar g)
+      )
+     )
+    (is
+     (equalp
+      (success 5 '(("a" "a" "a") "b" "c"))
+      (parse g "aaabcd")
+      )
+     )
     )
-   )
   )
 
-(test many-grammar
-  "llllllllll"
-  (is
-   (equalp
-
-    '(CLPCL-DEF-PARSERS
-      ((|abc| (CLPCL-SEQ (CLPCL-MANY-1 |a|) |b| |c|))
-       (|a| (CONVERTANTLR4::TOKEN-REGEXP "a"))
-       (|b| (CONVERTANTLR4::TOKEN-REGEXP "b"))
-       (|c| (CONVERTANTLR4::TOKEN-REGEXP "c")))
-      |abc|)
-
-    (grammar #>eof>
+(test class-parse
+  "simple"
+  (let ((g #>eof>
 
 grammar abc;
-abc : a+ b c;
+abc : a b c;
+a   : [a-z];
+b   : 'b';
+c   : 'c';
+
+eof))
+
+    (is
+     (equalp
+      '(CLPCL-DEF-PARSERS
+	((|abc| (CLPCL-SEQ |a| |b| |c|))
+	 (|a| (CONVERTANTLR4::TOKEN-REGEXP "[a-z]"))
+	 (|b| (CONVERTANTLR4::TOKEN-REGEXP "b"))
+	 (|c| (CONVERTANTLR4::TOKEN-REGEXP "c")))
+	|abc|)
+      (grammar g)
+      )
+     )
+    (is
+     (equalp
+      (success 3 '("z" "b" "c"))
+      (parse g "zbcd")
+      )
+     )
+    )
+  )
+
+
+(test or-parse
+  "simple"
+  (let ((g #>eof>
+
+grammar abc;
+abc : a (b | c);
 a   : 'a';
 b   : 'b';
 c   : 'c';
 
-eof
-)
+eof))
+
+    (is
+     (equalp
+      '(CLPCL-DEF-PARSERS
+	((|abc| (CLPCL-SEQ |a| (CLPCL-OR |b| |c|)))
+	 (|a| (CONVERTANTLR4::TOKEN-REGEXP "a"))
+	 (|b| (CONVERTANTLR4::TOKEN-REGEXP "b"))
+	 (|c| (CONVERTANTLR4::TOKEN-REGEXP "c")))
+	|abc|)
+      (grammar g)
+      )
+     )
+    (is
+     (equalp
+      (success 2 '("a" "b"))
+      (parse g "abcd")
+      )
+     )
+    (is
+     (equalp
+      (success 2 '("a" "c"))
+      (parse g "acbd")
+      )
+     )
     )
-   )
   )
+
+
+(test or-parse
+  "simple"
+  (let ((g #>eof>
+
+grammar abc;
+abc : a (b | c)+;
+a   : 'a';
+b   : 'b';
+c   : 'c';
+
+eof))
+
+    (is
+     (equalp
+      '(CLPCL-DEF-PARSERS
+	((|abc| (CLPCL-SEQ |a| (CLPCL-MANY-1 (CLPCL-OR |b| |c|))))
+	 (|a| (CONVERTANTLR4::TOKEN-REGEXP "a"))
+	 (|b| (CONVERTANTLR4::TOKEN-REGEXP "b"))
+	 (|c| (CONVERTANTLR4::TOKEN-REGEXP "c")))
+	|abc|)
+      (grammar g)
+      )
+     )
+    (is
+     (equalp
+      (success 3 '("a" ("b" "c")))
+      (parse g "abcd")
+      )
+     )
+    (is
+     (equalp
+      (success 3 '("a" ("c" "b")))
+      (parse g "acbd")
+      )
+     )
+    )
+  )
+
+
+(test or2-parse
+  "simple"
+  (let ((g #>eof>
+
+grammar abc;
+abc : a b+;
+a   : 'a';
+b   : 'b'|'c';
+
+eof))
+
+    (is
+     (equalp
+      '(CLPCL-DEF-PARSERS
+	((|abc| (CLPCL-SEQ |a| (CLPCL-MANY-1 |b|)))
+	 (|a| (CONVERTANTLR4::TOKEN-REGEXP "a"))
+	 (|b| (CLPCL-OR
+                (CONVERTANTLR4::TOKEN-REGEXP "b")
+                (CONVERTANTLR4::TOKEN-REGEXP "C"))))
+	|abc|)
+      (grammar g)
+      )
+     )
+    (is
+     (equalp
+      (success 3 '("a" ("b" "c")))
+      (parse g "abcd")
+      )
+     )
+    (is
+     (equalp
+      (success 3 '("a" ("c" "b")))
+      (parse g "acbd")
+      )
+     )
+    )
+  )
+
+
+(test or3-parse
+  "simple"
+  (let ((g #>eof>
+
+grammar abc;
+abc : a b+;
+a   : 'a';
+b   : 'b'|'c';
+
+eof))
+
+    (is
+     (equalp
+      '(CLPCL-DEF-PARSERS
+	((|abc| (CLPCL-SEQ |a| (CLPCL-MANY-1 |b|)))
+	 (|a| (CONVERTANTLR4::TOKEN-REGEXP "a"))
+	 (|b| (CLPCL-OR
+                (CONVERTANTLR4::TOKEN-REGEXP "b")
+                (CONVERTANTLR4::TOKEN-REGEXP "c"))))
+	|abc|)
+      (grammar g)
+      )
+     )
+    (is
+     (equalp
+      (success 3 '("a" ("b" "c")))
+      (clpcl-parse (eval (grammar g)) "abcd")
+      )
+     )
+    (is
+     (equalp
+      (success 3 '("a" ("c" "b")))
+      (clpcl-parse (eval (grammar g)) "acbd")
+      )
+     )
+    )
+  )
+
+
+
+
+
+
 
 
 
