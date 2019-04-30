@@ -3,9 +3,10 @@
 (defpackage convertantlr4
   (:use :cl :clpcl :optima)
   (:export
-   :test
    :antlr4-grammar-to-parser
    :antlr4-grammar-parse
+   :antlr4-file-to-parser
+   :antlr4-file-parse
    ))
 (in-package :convertantlr4)
 
@@ -63,6 +64,7 @@
   parsers
   )
 
+;;;;;;;;
 
 (defun token2 (p)
   (let* (
@@ -70,12 +72,14 @@
 			      (rest (clpcl-many-till
 				     (clpcl-regexp "(.|\\n)")
 				     (clpcl-regexp "\\*/"))))
+			     (declare (ignore cb rest))
 			     nil ))
 	 
 	 (comment2 (clpcl-let ((cb (clpcl-regexp "//"))
 			       (rest (clpcl-many-till
 				      (clpcl-regexp ".")
-				      (clpcl-regexp "\\n"))))
+				      (clpcl-regexp "\\n"))))	
+		      	      (declare (ignore cb rest))
 			      nil ))
 	 (spaces   (clpcl-many
 		    (clpcl-or
@@ -109,7 +113,8 @@
 			    (s ident)
 			    (z (token-regexp ";"))
 			    )
-			(<grammar-def> s)))
+			   (declare (ignore x z))
+			   (<grammar-def> s)))
 
 
     (fragment (clpcl-let ((nil (token-regexp "fragment"))
@@ -118,6 +123,7 @@
 			  (o orseq)
 			  (z (token-regexp ";"))
 			  )
+			 (declare (ignore y z))
 			 (<fragment> x o)))
 
     (grammar (clpcl-let ((x ident)
@@ -125,6 +131,7 @@
 			 (o orseq)
 			 (z (token-regexp ";"))
 			 )
+			(declare (ignore y z))
 			(<grammar> x o)))
 
     (seq (clpcl-let ((xs (clpcl-many factor1)))
@@ -137,11 +144,15 @@
 		      (<or> xs)))
     
     (factor (clpcl-or (clpcl-let ((x (token-regexp "channel\\(HIDDEN\\)")))
+				 (declare (ignore x))
 				 (<not-support>))
 		      ident
 		      (clpcl-let ((x (token-string)))(<literal> x))
 		      (clpcl-let ((x (token-char-class))) (<char-class> x))
-		      (clpcl-let ((x (token-regexp "->"))) (<not-support>))
+		      (clpcl-let ((x (token-regexp "->")))
+				 (declare (ignore x))
+				 (<not-support>)
+				 )
 		      (clpcl-paren (token-regexp "\\(")
 				   orseq
 				   (token-regexp "\\)"))))
@@ -170,24 +181,32 @@
    )
   )
 
-(defun antlr4-grammar-to-parser (path)
-  (let*((str (uiop:read-file-string path))
-	(parser (antlr4))
+(defun antlr4-file-to-parser (path)
+  (let ((str (uiop:read-file-string path)))
+    (antlr4-grammar-to-parser str)))
+
+(defun antlr4-grammar-to-parser (str)
+  (let*((parser (antlr4))
 	(rs (clpcl-parse parser str))
 	)
     (match rs
       ((success :value r)
        (build-parser r)))))
 
-(defun antlr4-grammar-parse (path text)
-  (let ((p (antlr4-grammar-to-parser path)))
+(defun antlr4-file-parse (path text)
+  (let ((p (antlr4-file-to-parser path)))
+    (if p
+	(clpcl-parse (eval p) text))))
+
+(defun antlr4-grammar-parse (str text)
+  (let ((p (antlr4-grammar-to-parser str)))
     (if p
 	(clpcl-parse (eval p) text))))
 
 
 (defun test (&optional (file "test.txt") (text "abc") )
   (let ((path (asdf:system-relative-pathname :convertantlr4 file)))
-    (antlr4-grammar-parse path text)
+    (antlr4-file-parse path text)
     )
   )
 
@@ -228,6 +247,7 @@
     ((<char-class> char-class)
      `(token-regexp ,char-class))
     ((<factor> :not-flag n :body b :rep-flag rep)
+     (declare (ignore n))
      (cond
        ((string= "*" rep)
 	`(clpcl-many ,(build-parser b)))
