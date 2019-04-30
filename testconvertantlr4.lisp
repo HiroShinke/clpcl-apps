@@ -9,27 +9,45 @@
 (def-suite :convertantlr4)
 (in-suite :convertantlr4)
 
-(defun parse (file text)
+(defun parse-file (file text)
   (let ((path (asdf:system-relative-pathname :convertantlr4 file)))
-    (antlr4-grammar-parse path text)
+    (antlr4-file-parse path text)
     )
   )
 
-(defun grammar (file)
+(defun parse (str text)
+  (antlr4-grammar-parse str text)
+  )
+
+(defun grammar-file (file)
   (let ((path (asdf:system-relative-pathname :convertantlr4 file)))
-    (antlr4-grammar-to-parser path)
+    (antlr4-file-to-parser path)
     )
   )
 
+(defun grammar (str)
+  (antlr4-grammar-to-parser str)
+  )
 
+
+(set-dispatch-macro-character #\# #\> #'cl-heredoc:read-heredoc)
 ;;;;;
 
 (test simple
   "llllllllll"
   (is
    (equalp
-    (success 1 '("a" "b" "c"))
-    (parse "test1.txt" "abcd")
+    (success 3 '("a" "b" "c"))
+    (parse #>eof>
+
+grammar abc;
+abc : a b c;
+a   : 'a';
+b   : 'b';
+c   : 'c';
+
+eof
+     "abcd")
     )
    )
   )
@@ -38,19 +56,27 @@
   "llllllllll"
   (is
    (equalp
-    (success 1 '("a" "b" "c"))
-    (grammar "test1.txt")
+
+    '(CLPCL-DEF-PARSERS
+      ((|abc| (CLPCL-SEQ |a| |b| |c|))
+       (|a| (CONVERTANTLR4::TOKEN-REGEXP "a"))
+       (|b| (CONVERTANTLR4::TOKEN-REGEXP "b"))
+       (|c| (CONVERTANTLR4::TOKEN-REGEXP "c")))
+      |abc|)
+
+    (grammar #>eof>
+
+grammar abc;
+abc : a b c;
+a   : 'a';
+b   : 'b';
+c   : 'c';
+
+eof
+)
     )
    )
   )
 
-(test complex
-  "llllllllll"
-  (is
-   (equalp
-    (success 1 '("a" "b" "c"))
-    (parse "test2.txt" "abcd")
-    )
-   )
-  )
+
 
