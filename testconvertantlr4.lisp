@@ -29,8 +29,9 @@
   (antlr4-grammar-to-parser str)
   )
 
-
-(set-dispatch-macro-character #\# #\> #'cl-heredoc:read-heredoc)
+(eval-when (:compile-toplevel)
+  (set-dispatch-macro-character #\# #\> #'cl-heredoc:read-heredoc)
+  )
 ;;;;;
 
 (test simple-parse

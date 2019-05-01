@@ -13,6 +13,7 @@
 (defstruct (<grammar-def>
 	     (:constructor <grammar-def>(name)))
   name
+  start
   parsers
   )
 
@@ -173,6 +174,8 @@
 				   fragment
 				   grammar
 				   ))))
+		       (setf (<grammar-def>-start g)
+			     (parser-name (car parsers)))
 		       (setf (<grammar-def>-parsers g) parsers)
 		       g
 		       ))
@@ -180,6 +183,14 @@
    parser
    )
   )
+
+(defun parser-name (p)
+  (match p
+    ((<grammar> name)
+     (<ident>-name name))
+    ((<fragment> name)
+     (<ident>-name name))
+    ))
 
 (defun antlr4-file-to-parser (path)
   (let ((str (uiop:read-file-string path)))
@@ -222,10 +233,10 @@
 
 (defun build-parser (g)
   (match g
-    ((<grammar-def> :name x :parsers ps)
+    ((<grammar-def> :start s :parsers ps)
      `(clpcl-def-parsers
        (,@(mapcar #'build-parser ps))
-       ,(intern (<ident>-name x))))
+       ,(intern s)))
     ((<grammar> :name x :rhs xs)
      (list (intern (<ident>-name x))
 	   (build-parser xs)))
