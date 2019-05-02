@@ -11,9 +11,9 @@
   :depends-on (:clpcl
 	       :convertantlr4
 	       )
-  :components ((:file "antlr4-cobol"))
-)
-
-
+  :components ((:file "antlr4-cobol")
+	       (:static-file "Cobol85.mini.g4"))
+  :in-order-to ((test-op (test-op testcobol85)))
+  )
 	
 	       
