@@ -29,6 +29,10 @@
   (antlr4-str-to-parser str)
   )
 
+(defun parser-grammar (str)
+  (antlr4-str-to-grammar str)
+  )
+
 (eval-when (:compile-toplevel)
   (set-dispatch-macro-character #\# #\> #'cl-heredoc:read-heredoc)
   )
@@ -315,7 +319,7 @@ eof))
      )
     (is
      (equalp
-      (success 3 '("a" ("c" "b")))
+      (failure 0)
       (clpcl-parse (eval (parser-def g)) "acbd")
       )
      )

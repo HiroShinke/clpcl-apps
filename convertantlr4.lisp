@@ -235,10 +235,32 @@
   (mapcar #'build-parser
 	  (remove-if (lambda (x)
 		       (match x
-			 ((<not-support>)
+			 ((or (<not-support>)
+			      (<fragment>))
 			  x))
 		       )
 		     xs))
+  )
+
+
+(defun build-lexical (p)
+
+  (let (ret)
+
+    (traverse-grammar
+     p
+     (lambda (x)
+       (match x
+	 ((<ident> :name name)
+	  (setq ret (cons name ret))
+	 )
+       )
+       ))
+    
+     `(token-regexp ,(apply #'concatenate
+			    'string
+			    (reverse ret)))
+     )
   )
 
 (defun split-quote (lit)
@@ -292,16 +314,16 @@
 
 (defun build-parser (g)
 
-  ;;(format t "build-parser: ~S~%" g)
-  
   (match g
     ((<grammar-def> :start s :grammars gs)
      `(clpcl-def-parsers
        (,@(build-parsers gs))
        ,(intern s)))
-    ((<grammar> :name x :rhs xs)
+    ((<grammar> :name x :rhs xs :lexical lexical)
      (list (intern x)
-	   (build-parser xs)))
+	   (if lexical
+	       (build-lexical xs)
+	       (build-parser xs))))
     ((<fragment> :name x :rhs xs)
      (list (intern x)
 	   (build-parser xs)))
@@ -342,14 +364,14 @@
      (funcall func g)
      (loop for x in xs
 	do (traverse-grammar x func)
-	  ))
-
+	  )
+     )
     ((or (<grammar> :rhs x)
 	 (<fragment> :rhs x)
 	 (<factor>   :body x))
      (funcall func g)
-     (traverse-grammar x func))
-
+     (traverse-grammar x func)
+     )
     ((or (<literal>)
  	 (<char-class>)
  	 (<ident>))
