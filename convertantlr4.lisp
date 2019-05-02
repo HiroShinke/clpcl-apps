@@ -208,10 +208,12 @@
       ((success :value g)
        (build-table table g)
        (update-grammar-lexical table g)
-       g))))
+       (values g table)))))
 
 (defun antlr4-str-to-parser (str)
-  (build-parser (antlr4-str-to-grammar str)))
+  (multiple-value-bind (g table) (antlr4-str-to-grammar str)
+    (build-parser g table))
+  )
 
 (defun antlr4-file-parse (path text)
   (let ((p (antlr4-file-to-parser path)))
@@ -230,39 +232,50 @@
     )
   )
 
-(defun build-parsers (xs)
 
-  (mapcar #'build-parser
-	  (remove-if (lambda (x)
-		       (match x
-			 ((or (<not-support>)
-			      (<fragment>))
-			  x))
-		       )
-		     xs))
-  )
-
-
-(defun build-lexical (p)
-
-  (let (ret)
-
-    (traverse-grammar
-     p
-     (lambda (x)
-       (match x
-	 ((<ident> :name name)
-	  (setq ret (cons name ret))
-	  )
-	 (otherwise
-	  t)
-       )
-       ))
-    
-     `(token-regexp ,(apply #'concatenate
-			    'string
-			    (reverse ret)))
+(defun string-join (delim ls)
+  (match ls
+    (nil "")
+    ((cons x nil) x)
+    (otherwise
+     (flet ((binder (n m)
+	      (concatenate 'string n delim m)))
+       (reduce #'binder ls))
      )
+    )
+  )
+  
+(defun build-lexical (p table)
+  
+  (labels ((helper (p)
+	     (match p
+	       ((<ident> :name name)
+		(let ((x (gethash name table)))
+		  (helper (<fragment>-rhs x))))
+	       ((<char-class> :char-class c) c)
+	       ((<literal> literal) (split-quote literal))
+	       ((<seq> :parsers ps) (helper-list ps))
+	       ((<or> :parsers ps)
+		(let ((ls (mapcar #'helper ps)))
+		  (if (< 1 (length ls))
+		      (concatenate
+		       'string
+		       "(" (string-join "|" ls) ")")
+		      (apply #'concatenate 'string ls)
+		      )
+		  )
+		)
+	       ((<factor> :body x) (helper x))
+	       (otherwise "")
+	       )
+	     )
+	   (helper-list (ps)
+	     (apply #'concatenate 'string (mapcar #'helper ps))
+	     )
+	   )
+    
+    (helper p)
+    )
   )
 
 (defun split-quote (lit)
@@ -320,45 +333,62 @@
     )
   )
 
-(defun build-parser (g)
+(defun map-subs (func xs)
 
-  (match g
-    ((<grammar-def> :start s :grammars gs)
-     `(clpcl-def-parsers
-       (,@(build-parsers gs))
-       ,(intern s)))
-    ((<grammar> :name x :rhs y :lexical lexical)
-     (list (intern x)
-	   (if lexical
-	       (build-lexical y)
-	       (build-parser y))))
-    ((<fragment> :name x :rhs y)
-     (list (intern x)
-	   (build-parser y)))
-    ((<or> :parsers xs)
-     (if (= (length xs) 1)
-	 (build-parser (car xs))
-	 `(clpcl-or ,@(build-parsers xs))))
-    ((<seq> :parsers xs)
-     (if (= (length xs) 1)
-	 (build-parser (car xs))
-	 `(clpcl-seq ,@(build-parsers xs))))
-    ((<literal> literal)
-     `(token-regexp ,(split-quote literal)))
-    ((<char-class> char-class)
-     `(token-regexp ,char-class))
-    ((<factor> :not-flag n :body b :rep-flag rep)
-     (declare (ignore n))
-     (cond
-       ((string= "*" rep)
-	`(clpcl-many ,(build-parser b)))
-       ((string= "+" rep)
-	`(clpcl-many-1 ,(build-parser b)))
-       (t
-	(build-parser b))
-       ))
-    ((<ident> :name name)
-     (intern name))
+  (mapcar func
+	  (remove-if (lambda (x)
+		       (match x
+			 ((or (<not-support>)
+			      (<fragment>))
+			  x))
+		       )
+		     xs))
+  )
+
+
+(defun build-parser (g table)
+
+  (flet ((build-parser1 (g)
+	   (build-parser g table)))
+  
+    (match g
+      ((<grammar-def> :start s :grammars gs)
+       `(clpcl-def-parsers
+	 (,@(map-subs #'build-parser1 gs))
+	 ,(intern s)))
+      ((<grammar> :name x :rhs y :lexical lexical)
+       (list (intern x)
+	     (if lexical
+		 `(token-regexp ,(build-lexical y table))
+		 (build-parser1 y))))
+      ((<fragment> :name x :rhs y)
+       (list (intern x)
+	     (build-parser1 y)))
+      ((<or> :parsers xs)
+       (if (= (length xs) 1)
+	   (build-parser1 (car xs))
+	   `(clpcl-or ,@(map-subs #'build-parser1 xs))))
+      ((<seq> :parsers xs)
+       (if (= (length xs) 1)
+	   (build-parser1 (car xs))
+	   `(clpcl-seq ,@(map-subs #'build-parser1 xs))))
+      ((<literal> literal)
+       `(token-regexp ,(split-quote literal)))
+      ((<char-class> char-class)
+       `(token-regexp ,char-class))
+      ((<factor> :not-flag n :body b :rep-flag rep)
+       (declare (ignore n))
+       (cond
+	 ((string= "*" rep)
+	  `(clpcl-many ,(build-parser1 b)))
+	 ((string= "+" rep)
+	  `(clpcl-many-1 ,(build-parser1 b)))
+	 (t
+	  (build-parser1 b))
+	 ))
+      ((<ident> :name name)
+       (intern name))
+      )
     )
   )
 

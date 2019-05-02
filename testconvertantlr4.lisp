@@ -293,7 +293,7 @@ eof))
 
 (test fragment-parse
   "simple"
-  (let ((g #>eof>
+  (let ((str #>eof>
 
 grammar abc;
 abc : a b c;
@@ -302,30 +302,34 @@ fragment b:'b';
 fragment c:'c';
 
 eof))
-
-    (is
-     (equalp
-      '(CLPCL-DEF-PARSERS
-	((|abc| (CONVERTANTLR4::TOKEN-REGEXP "abc")))
-	|abc|)
-      (parser-def g)
+    
+    (multiple-value-bind (g table)
+	(convertantlr4:antlr4-str-to-grammar str)
+	(declare (ignore table))
+      
+      (is
+       (equalp
+        '(CLPCL-DEF-PARSERS
+      	((|abc| (CONVERTANTLR4::TOKEN-REGEXP "abc")))
+      	|abc|)
+        (parser-def str)
+        )
+       )
+      (is
+       (equalp
+	(success 3 "abc")
+	(clpcl-parse (eval (parser-def str)) "abcd")
+	)
+       )
+      (is
+       (equalp
+	(failure 0)
+	(clpcl-parse (eval (parser-def str)) "acbd")
+	)
+       )
       )
-     )
-    (is
-     (equalp
-      (success 3 "abc")
-      (clpcl-parse (eval (parser-def g)) "abcd")
-      )
-     )
-    (is
-     (equalp
-      (failure 0)
-      (clpcl-parse (eval (parser-def g)) "acbd")
-      )
-     )
     )
   )
-
 
 (test grammar-lexical
   "simple"
