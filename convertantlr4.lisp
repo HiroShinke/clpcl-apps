@@ -251,7 +251,10 @@
 	     (match p
 	       ((<ident> :name name)
 		(let ((x (gethash name table)))
-		  (helper (<fragment>-rhs x))))
+		  (match x
+		    ((or (<fragment> :rhs rhs)
+			 (<grammar> :rhs rhs))
+		     (helper rhs)))))
 	       ((<char-class> :char-class c) c)
 	       ((<literal> literal) (split-quote literal))
 	       ((<seq> :parsers ps) (helper-list ps))
