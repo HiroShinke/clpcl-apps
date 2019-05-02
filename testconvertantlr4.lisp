@@ -323,7 +323,7 @@ eof))
   )
 
 
-(test traverse-grammar
+(test grammar-lexical
   "simple"
   (let* ((str #>eof>
 

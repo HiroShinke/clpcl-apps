@@ -8,7 +8,6 @@
    :antlr4-str-to-grammar
    :antlr4-file-to-parser
    :antlr4-file-parse
-   :traverse-grammar
    ))
 (in-package :convertantlr4)
 
@@ -203,7 +202,7 @@
 (defun antlr4-str-to-grammar (str)
   (let*((parser (antlr4))
 	(rs (clpcl-parse parser str))
-	(table (make-hash-table))
+	(table (make-hash-table :test #'equal))
 	)
     (match rs
       ((success :value g)
