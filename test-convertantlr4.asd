@@ -2,7 +2,7 @@
 
 (in-package :cl-user)
 (defpackage test-convertantlr4-asd
-  (:use :cl :asdf :uiop :cl-heredoc))
+  (:use :cl :asdf :uiop))
 (in-package :test-convertantlr4-asd)
 
 (defsystem "test-convertantlr4"
