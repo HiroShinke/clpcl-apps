@@ -8,6 +8,7 @@
    :antlr4-str-to-grammar
    :antlr4-file-to-parser
    :antlr4-file-parse
+   :build-parser
    ))
 (in-package :convertantlr4)
 
