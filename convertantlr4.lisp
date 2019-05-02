@@ -253,7 +253,9 @@
        (match x
 	 ((<ident> :name name)
 	  (setq ret (cons name ret))
-	 )
+	  )
+	 (otherwise
+	  t)
        )
        ))
     
@@ -298,14 +300,20 @@
 		      (setf (<grammar>-lexical g) t))
 		     )
 		   )
-		 ))))))
+		 )
+		(otherwise
+		 t)
+		)))))
 
     (traverse-grammar
      g
      (lambda (x)
        (match x
 	 ((<grammar>)
-	  (update-grammar x))
+	  (update-grammar x)
+	  nil)
+	 (otherwise
+	  t)
 	 )
        )
      )
@@ -357,26 +365,27 @@
 (defun traverse-grammar(g func)
 
   (match g
+
     ((or (<grammar-def> :grammars xs)
 	 (<or>          :parsers xs)
 	 (<seq>         :parsers xs)
 	 )
-     (funcall func g)
-     (loop for x in xs
-	do (traverse-grammar x func)
-	  )
-     )
+     (if (funcall func g)
+	 (loop for x in xs
+	    do (traverse-grammar x func)
+	      )
+	 ))
     ((or (<grammar> :rhs x)
 	 (<fragment> :rhs x)
 	 (<factor>   :body x))
-     (funcall func g)
-     (traverse-grammar x func)
-     )
+     (if (funcall func g)
+	 (traverse-grammar x func)
+	 ))
+
     ((or (<literal>)
  	 (<char-class>)
  	 (<ident>))
       (funcall func g))
-
     )
   )
 
