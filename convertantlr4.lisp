@@ -137,7 +137,16 @@
 			(declare (ignore y z))
 			(<grammar> (<ident>-name x) o)))
 
-    (seq (clpcl-let ((xs (clpcl-many factor1)))
+    (seq (clpcl-let ((xs (clpcl-many 
+			  (clpcl-or
+			   (clpcl-let ((x (token-regexp "channel\\(HIDDEN\\)")))
+				      (declare (ignore x))
+				      (<not-support>))
+			   factor1
+			   (clpcl-let ((x (token-regexp "->")))
+				 (declare (ignore x))
+				 (<not-support>))
+			   ))))
 		    (<seq> xs)))
 		    
     (orseq (clpcl-let ((xs (clpcl-sep-by-1
@@ -146,16 +155,9 @@
 			    )))
 		      (<or> xs)))
     
-    (factor (clpcl-or (clpcl-let ((x (token-regexp "channel\\(HIDDEN\\)")))
-				 (declare (ignore x))
-				 (<not-support>))
-		      ident
+    (factor (clpcl-or ident
 		      (clpcl-let ((x (token-string)))(<literal> x))
 		      (clpcl-let ((x (token-char-class))) (<char-class> x))
-		      (clpcl-let ((x (token-regexp "->")))
-				 (declare (ignore x))
-				 (<not-support>)
-				 )
 		      (clpcl-paren (token-regexp "\\(")
 				   orseq
 				   (token-regexp "\\)"))))
@@ -268,7 +270,10 @@
 		      )
 		  )
 		)
-	       ((<factor> :body x) (helper x))
+	       ((<factor> :body x :rep-flag rep)
+		(if rep
+		    (concatenate 'string (helper x) rep)
+		    (helper x)))
 	       (otherwise "")
 	       )
 	     )
@@ -386,6 +391,8 @@
 	  `(clpcl-many ,(build-parser1 b)))
 	 ((string= "+" rep)
 	  `(clpcl-many-1 ,(build-parser1 b)))
+	 ((string= "?" rep)
+	  `(clpcl-option ,(build-parser1 b)))
 	 (t
 	  (build-parser1 b))
 	 ))
