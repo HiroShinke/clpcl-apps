@@ -3,10 +3,12 @@
 (defpackage convertantlr4
   (:use :cl :clpcl :optima)
   (:export
-   :antlr4-grammar-to-parser
-   :antlr4-grammar-parse
+   :antlr4-str-to-parser
+   :antlr4-str-parse
+   :antlr4-str-to-grammar
    :antlr4-file-to-parser
    :antlr4-file-parse
+   :traverse-grammar
    ))
 (in-package :convertantlr4)
 
@@ -14,13 +16,14 @@
 	     (:constructor <grammar-def>(name)))
   name
   start
-  parsers
+  grammars
   )
 
 (defstruct (<grammar>
 	     (:constructor <grammar>(name rhs)))
   name
   rhs
+  lexical
   )
 
 (defstruct (<fragment>
@@ -115,7 +118,7 @@
 			    (z (token-regexp ";"))
 			    )
 			   (declare (ignore x z))
-			   (<grammar-def> s)))
+			   (<grammar-def> (<ident>-name s))))
 
 
     (fragment (clpcl-let ((nil (token-regexp "fragment"))
@@ -125,7 +128,7 @@
 			  (z (token-regexp ";"))
 			  )
 			 (declare (ignore y z))
-			 (<fragment> x o)))
+			 (<fragment> (<ident>-name x) o)))
 
     (grammar (clpcl-let ((x ident)
 			 (y (token-regexp ":"))
@@ -133,7 +136,7 @@
 			 (z (token-regexp ";"))
 			 )
 			(declare (ignore y z))
-			(<grammar> x o)))
+			(<grammar> (<ident>-name x) o)))
 
     (seq (clpcl-let ((xs (clpcl-many factor1)))
 		    (<seq> xs)))
@@ -169,14 +172,14 @@
 
     
     (parser (clpcl-let ((g grammarDef)
-			(parsers (clpcl-many
+			(grammars (clpcl-many
 				  (clpcl-or 
 				   fragment
 				   grammar
 				   ))))
 		       (setf (<grammar-def>-start g)
-			     (parser-name (car parsers)))
-		       (setf (<grammar-def>-parsers g) parsers)
+			     (parser-name (car grammars)))
+		       (setf (<grammar-def>-grammars g) grammars)
 		       g
 		       ))
     )
@@ -187,30 +190,37 @@
 (defun parser-name (p)
   (match p
     ((<grammar> name)
-     (<ident>-name name))
+     name)
     ((<fragment> name)
-     (<ident>-name name))
-    ))
+     name)
+    )
+  )
 
 (defun antlr4-file-to-parser (path)
   (let ((str (uiop:read-file-string path)))
-    (antlr4-grammar-to-parser str)))
+    (antlr4-str-to-parser str)))
 
-(defun antlr4-grammar-to-parser (str)
+(defun antlr4-str-to-grammar (str)
   (let*((parser (antlr4))
 	(rs (clpcl-parse parser str))
+	(table (make-hash-table))
 	)
     (match rs
-      ((success :value r)
-       (build-parser r)))))
+      ((success :value g)
+       (build-table table g)
+       (update-grammar-lexical table g)
+       g))))
+
+(defun antlr4-str-to-parser (str)
+  (build-parser (antlr4-str-to-grammar str)))
 
 (defun antlr4-file-parse (path text)
   (let ((p (antlr4-file-to-parser path)))
     (if p
 	(clpcl-parse (eval p) text))))
 
-(defun antlr4-grammar-parse (str text)
-  (let ((p (antlr4-grammar-to-parser str)))
+(defun antlr4-str-parse (str text)
+  (let ((p (antlr4-str-to-parser str)))
     (if p
 	(clpcl-parse (eval p) text))))
 
@@ -222,6 +232,7 @@
   )
 
 (defun build-parsers (xs)
+
   (mapcar #'build-parser
 	  (remove-if (lambda (x)
 		       (match x
@@ -231,17 +242,69 @@
 		     xs))
   )
 
+(defun split-quote (lit)
+  (subseq lit 1 (- (length lit) 1)))
+
+
+(defun build-table (table g)
+
+  (labels ((helper (g)
+	     (match g
+	       ((<grammar-def> :start s :grammars ps)
+		(declare (ignore s))
+		(mapcar #'helper ps))
+	       ((<grammar> :name x)
+		(setf (gethash x table) g))
+	       ((<fragment> :name x)
+		(setf (gethash x table) g))
+	       )
+	     ))
+    (helper g)
+    )
+  )
+
+(defun update-grammar-lexical (table g)
+
+  (flet ((update-grammar (g)
+	   (traverse-grammar
+	    g
+	    (lambda (xx)
+	      (match xx
+		((<ident> :name n)
+		 (let ((x (gethash n table)))
+		   (match x
+		     ((<fragment>)
+		      (setf (<grammar>-lexical g) t))
+		     )
+		   )
+		 ))))))
+
+    (traverse-grammar
+     g
+     (lambda (x)
+       (match x
+	 ((<grammar>)
+	  (update-grammar x))
+	 )
+       )
+     )
+    )
+  )
+
 (defun build-parser (g)
+
+  ;;(format t "build-parser: ~S~%" g)
+  
   (match g
-    ((<grammar-def> :start s :parsers ps)
+    ((<grammar-def> :start s :grammars gs)
      `(clpcl-def-parsers
-       (,@(mapcar #'build-parser ps))
+       (,@(build-parsers gs))
        ,(intern s)))
     ((<grammar> :name x :rhs xs)
-     (list (intern (<ident>-name x))
+     (list (intern x)
 	   (build-parser xs)))
     ((<fragment> :name x :rhs xs)
-     (list (intern (<ident>-name x))
+     (list (intern x)
 	   (build-parser xs)))
     ((<or> :parsers xs)
      (if (= (length xs) 1)
@@ -252,9 +315,7 @@
 	 (build-parser (car xs))
 	 `(clpcl-seq ,@(build-parsers xs))))
     ((<literal> literal)
-     `(token-regexp ,(subseq literal
-			     1
-			     (- (length literal) 1) )))
+     `(token-regexp ,(split-quote literal)))
     ((<char-class> char-class)
      `(token-regexp ,char-class))
     ((<factor> :not-flag n :body b :rep-flag rep)
@@ -272,3 +333,31 @@
     )
   )
 
+(defun traverse-grammar(g func)
+
+  (match g
+    ((or (<grammar-def> :grammars xs)
+	 (<or>          :parsers xs)
+	 (<seq>         :parsers xs)
+	 )
+     (funcall func g)
+     (loop for x in xs
+	do (traverse-grammar x func)
+	  ))
+
+    ((or (<grammar> :rhs x)
+	 (<fragment> :rhs x)
+	 (<factor>   :body x))
+     (funcall func g)
+     (traverse-grammar x func))
+
+    ((or (<literal>)
+ 	 (<char-class>)
+ 	 (<ident>))
+      (funcall func g))
+
+    )
+  )
+
+
+	  

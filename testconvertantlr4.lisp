@@ -16,7 +16,7 @@
   )
 
 (defun parse (str text)
-  (antlr4-grammar-parse str text)
+  (antlr4-str-parse str text)
   )
 
 (defun grammar-file (file)
@@ -25,8 +25,8 @@
     )
   )
 
-(defun grammar (str)
-  (antlr4-grammar-to-parser str)
+(defun parser-def (str)
+  (antlr4-str-to-parser str)
   )
 
 (eval-when (:compile-toplevel)
@@ -54,7 +54,7 @@ eof))
 	 (|b| (CONVERTANTLR4::TOKEN-REGEXP "b"))
 	 (|c| (CONVERTANTLR4::TOKEN-REGEXP "c")))
 	|abc|)
-      (grammar g)
+      (parser-def g)
       )
      )
     (is
@@ -77,7 +77,7 @@ b   : 'b';
 c   : 'c';
 
 eof))
-
+    
     (is
      (equalp
       '(CLPCL-DEF-PARSERS
@@ -86,7 +86,7 @@ eof))
 	 (|b| (CONVERTANTLR4::TOKEN-REGEXP "b"))
 	 (|c| (CONVERTANTLR4::TOKEN-REGEXP "c")))
 	|abc|)
-      (grammar g)
+      (parser-def g)
       )
      )
     (is
@@ -118,7 +118,7 @@ eof))
 	 (|b| (CONVERTANTLR4::TOKEN-REGEXP "b"))
 	 (|c| (CONVERTANTLR4::TOKEN-REGEXP "c")))
 	|abc|)
-      (grammar g)
+      (parser-def g)
       )
      )
     (is
@@ -151,7 +151,7 @@ eof))
 	 (|b| (CONVERTANTLR4::TOKEN-REGEXP "b"))
 	 (|c| (CONVERTANTLR4::TOKEN-REGEXP "c")))
 	|abc|)
-      (grammar g)
+      (parser-def g)
       )
      )
     (is
@@ -190,7 +190,7 @@ eof))
 	 (|b| (CONVERTANTLR4::TOKEN-REGEXP "b"))
 	 (|c| (CONVERTANTLR4::TOKEN-REGEXP "c")))
 	|abc|)
-      (grammar g)
+      (parser-def g)
       )
      )
     (is
@@ -229,7 +229,7 @@ eof))
                 (CONVERTANTLR4::TOKEN-REGEXP "b")
                 (CONVERTANTLR4::TOKEN-REGEXP "C"))))
 	|abc|)
-      (grammar g)
+      (parser-def g)
       )
      )
     (is
@@ -268,23 +268,83 @@ eof))
                 (CONVERTANTLR4::TOKEN-REGEXP "b")
                 (CONVERTANTLR4::TOKEN-REGEXP "c"))))
 	|abc|)
-      (grammar g)
+      (parser-def g)
       )
      )
     (is
      (equalp
       (success 3 '("a" ("b" "c")))
-      (clpcl-parse (eval (grammar g)) "abcd")
+      (clpcl-parse (eval (parser-def g)) "abcd")
       )
      )
     (is
      (equalp
       (success 3 '("a" ("c" "b")))
-      (clpcl-parse (eval (grammar g)) "acbd")
+      (clpcl-parse (eval (parser-def g)) "acbd")
       )
      )
     )
   )
+
+
+(test fragment-parse
+  "simple"
+  (let ((g #>eof>
+
+grammar abc;
+abc : a b c;
+fragment a:'a';
+fragment b:'b';
+fragment c:'c';
+
+eof))
+
+    (is
+     (equalp
+      '(CLPCL-DEF-PARSERS
+	((|abc| (CONVERTANTLR4::TOKEN-REGEXP "abc")))
+	|abc|)
+      (parser-def g)
+      )
+     )
+    (is
+     (equalp
+      (success 3 "abc")
+      (clpcl-parse (eval (parser-def g)) "abcd")
+      )
+     )
+    (is
+     (equalp
+      (success 3 '("a" ("c" "b")))
+      (clpcl-parse (eval (parser-def g)) "acbd")
+      )
+     )
+    )
+  )
+
+
+(test traverse-grammar
+  "simple"
+  (let* ((str #>eof>
+
+grammar abc;
+abc : a b c;
+fragment a:'a';
+fragment b:'b';
+fragment c:'c';
+
+eof)
+	 (g (antlr4-str-to-grammar str)))
+    (is
+     (equalp
+      t
+      (convertantlr4::<grammar>-lexical
+       (car (convertantlr4::<grammar-def>-grammars g)))
+      )
+     )
+    )
+  )
+
 
 
 
