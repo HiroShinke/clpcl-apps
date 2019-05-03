@@ -355,10 +355,10 @@
   )
 
 
-(defun build-parser (g table)
+(defun build-parser (g table &optional debug-names)
 
   (flet ((build-parser1 (g)
-	   (build-parser g table)))
+	   (build-parser g table debug-names)))
   
     (match g
       ((<grammar-def> :start s :grammars gs)
@@ -366,10 +366,17 @@
 	 (,@(map-subs #'build-parser1 gs))
 	 ,(intern s)))
       ((<grammar> :name x :rhs y :lexical lexical)
-       (list (intern x)
-	     (if lexical
-		 `(token-regexp ,(build-lexical y table))
-		 (build-parser1 y))))
+       (let ((expr (if lexical
+		       `(token-regexp ,(build-lexical y table))
+		       (build-parser1 y)))
+	     )
+	 (list (intern x) 
+	       (if (member x debug-names :test #'equal)
+		   `(clpcl-debug ,x ,expr)
+		   expr)
+	       )
+	 )
+       )
       ((<fragment> :name x :rhs y)
        (list (intern x)
 	     (build-parser1 y)))

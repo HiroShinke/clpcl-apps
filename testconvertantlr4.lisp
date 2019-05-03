@@ -9,23 +9,21 @@
 (def-suite :convertantlr4)
 (in-suite :convertantlr4)
 
-(defun parse-file (file text)
-  (let ((path (asdf:system-relative-pathname :convertantlr4 file)))
-    (antlr4-file-parse path text)
+(defun parse (str text &optional debug-names )
+  (clpcl-parse (eval (parser-expr str debug-names)) text)
+  )
+
+(defun parser-expr (str &optional debug-names )
+  (multiple-value-bind (g table)  
+      (antlr4-str-to-grammar str)
+    (build-parser g table debug-names)
     )
-  )
-
-(defun parse (str text)
-  (antlr4-str-parse str text)
-  )
-
-(defun parser-expr (str)
-  (antlr4-str-to-parser str)
   )
 
 (defun parser-grammar (str)
   (antlr4-str-to-grammar str)
   )
+
 
 (eval-when (:compile-toplevel)
   (set-dispatch-macro-character #\# #\> #'cl-heredoc:read-heredoc)
@@ -166,7 +164,6 @@ eof))
      )
     )
   )
-
 
 (test or-parse
   "simple"
@@ -430,6 +427,38 @@ eof)
     )
   )
 
+
+(test debug-names-parse
+  "simple"
+  (let ((g #>eof>
+
+grammar abc;
+abc : a b c;
+a   : 'a';
+b   : 'b';
+c   : 'c';
+
+eof))
+
+    (is
+     (equalp
+      '(CLPCL-DEF-PARSERS
+	((|abc| (CLPCL-DEBUG "abc" (CLPCL-SEQ |a| |b| |c|)))
+	 (|a| (CLPCL-DEBUG "a" (CONVERTANTLR4::TOKEN-REGEXP "a")))
+	 (|b| (CONVERTANTLR4::TOKEN-REGEXP "b"))
+	 (|c| (CONVERTANTLR4::TOKEN-REGEXP "c")))
+	|abc|)
+      (parser-expr g '("abc" "a"))
+      )
+     )
+    (is
+     (equalp
+      (success 3 '("a" "b" "c"))
+      (parse g "abcd" '("abc" "a"))
+      )
+     )
+    )
+  )
 
 
 
