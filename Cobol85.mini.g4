@@ -2140,7 +2140,7 @@ MINUSCHAR : '-';
 MORETHANCHAR : '>';
 MORETHANOREQUAL : '>=';
 NOTEQUALCHAR : '<>';
-PLUSCHAR : '+';
+PLUSCHAR : '\+';
 SINGLEQUOTE : '\'';
 RPARENCHAR : '\)';
 SLASHCHAR : '/';
@@ -2176,7 +2176,7 @@ INTEGERLITERAL : (PLUSCHAR | MINUSCHAR)? [0-9]+;
 
 NUMERICLITERAL : (PLUSCHAR | MINUSCHAR)? [0-9]* (DOT | COMMACHAR) [0-9]+ (('e' | 'E') (PLUSCHAR | MINUSCHAR)? [0-9]+)?;
 
-IDENTIFIER : [a-zA-Z0-9]+ ([-_]+ [a-zA-Z0-9]+)*;
+IDENTIFIER : '[a-zA-Z0-9]+([-_]+[a-zA-Z0-9]+)*';
 
 // whitespace, line breaks, comments, ...
 NEWLINE : '\r'? '\n' -> channel(HIDDEN);

@@ -15,13 +15,17 @@
 (defun parse-result (str)
   (optima:match (parse str)
     ((success :value r)
-     r)))
+     r)
+    ((failure :pos pos)
+     pos)
+    )
+  )
 
 (test simple-parse
   (is
    (equalp
     '((("IDENTIFICATION" "DIVISION" "."
-	("PROGRAM-ID" "." (("D" "D" "D" "D") NIL) NIL "." NIL) NIL)
+	("PROGRAM-ID" "." "DDDD" NIL "." NIL) NIL)
        NIL ("DATA" "DIVISION" "." NIL) NIL NIL NIL))
 
    (parse-result #>eof>
@@ -30,6 +34,26 @@ IDENTIFICATION DIVISION.
 PROGRAM-ID. DDDD. 
 DATA DIVISION. 
 
+eof)
+   )
+   )
+  )
+
+(test procedure-division
+  (is
+   (equalp
+    '((("IDENTIFICATION" "DIVISION" "."
+	("PROGRAM-ID" "." "DDDD" NIL "." NIL) NIL)
+       NIL ("DATA" "DIVISION" "." NIL) NIL NIL NIL))
+
+   (parse-result #>eof>
+
+IDENTIFICATION DIVISION. 
+PROGRAM-ID. DDDD. 
+DATA DIVISION. 
+FILE SECTION. 
+PROCEDURE DIVISION. 
+EXIT. 
 eof)
    )
    )
