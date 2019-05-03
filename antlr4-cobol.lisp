@@ -24,7 +24,8 @@
 (defun parser-expr ()
   (multiple-value-bind (g table)
       (grammar-ast)
-    (build-parser g table :debug-all)
+    ;;    (build-parser g table :debug-all)
+    (build-parser g table)    
     )
   )
 

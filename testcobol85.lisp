@@ -42,11 +42,12 @@ eof)
 (test procedure-division
   (is
    (equalp
-    '((("IDENTIFICATION" "DIVISION" "."
-	("PROGRAM-ID" "." "DDDD" NIL "." NIL) NIL)
-       NIL ("DATA" "DIVISION" "." NIL) NIL NIL NIL))
+    '((("IDENTIFICATION" "DIVISION" "." ("PROGRAM-ID" "." "DDDD" NIL "." NIL) NIL)
+       NIL ("DATA" "DIVISION" "." (("FILE" "SECTION" "." NIL)))
+       ("PROCEDURE" "DIVISION" NIL NIL "." (((((("EXIT" NIL)) ".")) NIL) NIL)) NIL
+       NIL))
 
-   (parse-result #>eof>
+    (parse-result #>eof>
 
 IDENTIFICATION DIVISION. 
 PROGRAM-ID. DDDD. 
