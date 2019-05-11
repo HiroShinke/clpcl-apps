@@ -296,14 +296,13 @@ eof))
     
     (multiple-value-bind (g table)
 	(convertantlr4:antlr4-str-to-grammar str)
-
       (declare (ignore g table))
-      
+
       (is
        (equalp
         '(CLPCL-DEF-PARSERS
-      	((|abc| (CONVERTANTLR4::TOKEN-REGEXP "abc")))
-      	|abc|)
+      	  ((|abc| (CONVERTANTLR4::TOKEN-STRING "abc")))
+      	  |abc|)
         (parser-expr str)
         )
        )

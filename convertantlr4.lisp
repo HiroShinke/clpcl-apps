@@ -70,7 +70,7 @@
 
 ;;;;;;;;
 
-(defun token2 (p)
+(defparameter *spaces*
   (let* (
 	 (comment (clpcl-let ((cb (clpcl-regexp "/\\*"))
 			      (rest (clpcl-many-till
@@ -92,16 +92,26 @@
 		     comment2
 		     )))
 	 )
-    (clpcl-token p spaces)
+    spaces
+    ))
+
+(defun token2 (p)
+    (clpcl-token p *spaces*)
     )
-  )
 
 (defun token-regexp (regexp)
   (token2 (clpcl-regexp regexp)))
 
-(defun token-string ()
-  (token2 (clpcl-string #\')))
+(defun token-string (str)
+  (token2 (clpcl-string str)))
 
+(defun token-string-literal0 ()
+  (token2 (clpcl-string-literal #\')))
+
+(defparameter *token-string-literal* (token-string-literal0) )
+
+(defun token-string-literal () *token-string-literal* )
+       
 (defun token-char-class ()
   (token2 (clpcl-regexp "\\[[^\\]]+\\]")))
 
@@ -157,7 +167,7 @@
 		      (<or> xs)))
     
     (factor (clpcl-or ident
-		      (clpcl-let ((x (token-string)))(<literal> x))
+		      (clpcl-let ((x (token-string-literal)))(<literal> x))
 		      (clpcl-let ((x (token-char-class))) (<char-class> x))
 		      (clpcl-paren (token-regexp "\\(")
 				   orseq
@@ -354,12 +364,21 @@
 		     xs))
   )
 
+(defun build-string-or-regexp (y table)
+  (let ((str (build-lexical y table)))
+    (if (or (search "|" str)
+	    (search "[" str)
+	    (search "]" str))
+	`(token-regexp ,str)
+	`(token-string ,str))
+    )
+  )
 
 (defun build-parser (g table &optional debug-names)
 
   (flet ((build-parser1 (g)
 	   (build-parser g table debug-names)))
-  
+
     (match g
       ((<grammar-def> :start s :grammars gs)
        `(clpcl-def-parsers
@@ -367,7 +386,7 @@
 	 ,(intern s)))
       ((<grammar> :name x :rhs y :lexical lexical)
        (let ((expr (if lexical
-		       `(token-regexp ,(build-lexical y table))
+		       (build-string-or-regexp y table)
 		       (build-parser1 y)))
 	     )
 	 (list (intern x) 
